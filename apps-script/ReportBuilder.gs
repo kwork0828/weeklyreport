@@ -14,7 +14,7 @@ function buildWeeklyReportText_(start, end) {
   const summaryText = renderConsultationSummaryText(summary);
   const programDraft = buildProgramStatusDraft(start, end);
   const consultingDraft = buildConsultingHighlightsDraft(start, end);
-  const hiresDraft = buildNewHiresDraftText(start, end);
+  const hiresDraft = buildNewHiresDraftText();
   const weekNo = getWeekNumber_(end);
 
   const lines = [];
@@ -29,7 +29,7 @@ function buildWeeklyReportText_(start, end) {
   lines.push('(3) 특이 사항');
   lines.push('--- [컨설팅] 초안 (잡매칭 기록 기준, 문구 다듬기 필요) ---');
   lines.push(consultingDraft);
-  lines.push('--- [취업자] 초안 (자동 대조: 취업설문 응답 vs 구미캠퍼스 교육생 탭) ---');
+  lines.push('--- [취업자] 초안 (자동 대조: 취업설문 응답 vs 구미캠퍼스 교육생 탭 비고란의 "보고" 기록) ---');
   lines.push(hiresDraft.text);
   lines.push('');
   lines.push('(참고) ' + weekNo + '주차 / 대상 기간: ' + formatDateYMD_(start) + ' ~ ' + formatDateYMD_(end));

@@ -22,22 +22,21 @@ function generateWeeklyReportDraftUi() {
 }
 
 function previewNewHiresUi() {
-  const range = getReportDateRange_(new Date());
-  const draft = buildNewHiresDraftText(range.start, range.end);
+  const draft = buildNewHiresDraftText();
   SpreadsheetApp.getUi().alert('신규 취업자 초안', draft.text, SpreadsheetApp.getUi().ButtonSet.OK);
 }
 
 function applyConfirmedHiresUi() {
   const ui = SpreadsheetApp.getUi();
-  const range = getReportDateRange_(new Date());
   const confirm = ui.alert(
     '구미캠퍼스 교육생 탭 반영',
-    '이번 주 신규 취업이 확인된 건 중, 명단에서 정확히 1명이 매칭된 건만 자동으로 반영합니다.\n' +
+    '아직 보고되지 않은 취업 확인 건 중, 명단에서 정확히 1명이 매칭된 건만 자동으로 반영합니다.\n' +
+      '반영 시 비고란에 "오늘 날짜(요일) 보고"가 자동 기록되어 다음부터는 중복으로 잡히지 않습니다.\n' +
       '동명이인/명단 미발견 건은 반영되지 않으니 직접 확인해주세요.\n계속할까요?',
     ui.ButtonSet.YES_NO
   );
   if (confirm !== ui.Button.YES) return;
-  const updated = applyConfirmedHiresToRoster(range.start, range.end);
+  const updated = applyConfirmedHiresToRoster();
   ui.alert('반영 완료: ' + updated + '건');
 }
 

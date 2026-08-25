@@ -2,25 +2,25 @@
  * 공통 유틸리티
  */
 
-// 기준일 이전(포함)의 가장 최근 화요일을 반환
-function getMostRecentTuesday_(refDate) {
+// 기준일 이전(포함)의 가장 최근 월요일을 반환
+// 월요일에 실행하면 오늘 자신이, 화요일에 실행하면 어제(월요일)가 됨 -> 실행 요일에 상관없이 항상 같은 주간 경계를 계산
+function getMostRecentMonday_(refDate) {
   const d = new Date(refDate);
   d.setHours(0, 0, 0, 0);
-  const day = d.getDay(); // 0=일 ... 2=화
-  const diff = (day - 2 + 7) % 7;
+  const day = d.getDay(); // 0=일 1=월 2=화 ...
+  const diff = (day + 6) % 7; // 월요일로부터 며칠 지났는지
   d.setDate(d.getDate() - diff);
   return d;
 }
 
-// 이번 주 보고 대상 기간: [지난주 화요일, 이번주 월요일] (사용자가 실제 사용하는 기준)
-// refDate를 화요일에 실행한다고 가정하면 자동으로 맞는 구간이 계산됨
+// 이번 주 보고 대상 기간: [지난주 화요일, 이번주 월요일]
+// 월요일/화요일 둘 중 언제 실행하든 같은 구간이 나오도록 '가장 최근 월요일'을 기준으로 계산
 function getReportDateRange_(refDate) {
-  const thisTue = getMostRecentTuesday_(refDate || new Date());
-  const end = new Date(thisTue);
-  end.setDate(end.getDate() - 1); // 이번주 월요일
+  const recentMonday = getMostRecentMonday_(refDate || new Date());
+  const end = new Date(recentMonday);
   end.setHours(23, 59, 59, 999);
-  const start = new Date(thisTue);
-  start.setDate(start.getDate() - 7); // 지난주 화요일
+  const start = new Date(recentMonday);
+  start.setDate(start.getDate() - 6); // 지난주 화요일
   start.setHours(0, 0, 0, 0);
   return { start, end };
 }
@@ -36,6 +36,28 @@ function formatDateYMD_(date) {
 
 function formatDateMD_(date) {
   return Utilities.formatDate(date, Session.getScriptTimeZone() || 'Asia/Seoul', 'M.d');
+}
+
+// 비고란에 실제로 적는 표기와 동일한 형식: "8/11(화)"
+function formatKoreanShortDateWithWeekday_(date) {
+  const weekdays = ['일', '월', '화', '수', '목', '금', '토'];
+  const md = Utilities.formatDate(date, Session.getScriptTimeZone() || 'Asia/Seoul', 'M/d');
+  return md + '(' + weekdays[date.getDay()] + ')';
+}
+
+// 구미캠퍼스 교육생 탭 비고란의 "8/11(화) 보고" 같은 메모에서 가장 최근 보고일을 뽑아낸다.
+// 같은 셀에 여러 번 누적 기재된 경우 가장 늦은 날짜를 기준으로 삼는다.
+function parseLatestReportedDate_(noteText) {
+  if (!noteText) return null;
+  const re = /(\d{1,2})\s*\/\s*(\d{1,2})\s*\([^)]*\)\s*보고/g;
+  const year = new Date().getFullYear();
+  let m;
+  let latest = null;
+  while ((m = re.exec(String(noteText))) !== null) {
+    const d = new Date(year, Number(m[1]) - 1, Number(m[2]), 23, 59, 59, 999);
+    if (!latest || d > latest) latest = d;
+  }
+  return latest;
 }
 
 // "2026년8월10일" / "2026년 8월 10일" 같은 표기를 Date로 파싱
