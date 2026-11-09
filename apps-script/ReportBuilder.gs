@@ -29,12 +29,12 @@ function buildWeeklyReportText_(start, end) {
   lines.push('(3) 특이 사항');
   lines.push('--- [컨설팅] 초안 (잡매칭 기록 기준, 문구 다듬기 필요) ---');
   lines.push(consultingDraft);
-  lines.push('--- [취업자] 초안 (자동 대조: 취업설문 응답 vs 구미캠퍼스 교육생 탭 비고란의 "보고" 기록) ---');
+  lines.push('--- [취업자] 초안 (교육생_취업자명단 탭에서 "보고" 마커 없는 건 전부) ---');
   lines.push(hiresDraft.text);
   lines.push('');
   lines.push('(참고) ' + weekNo + '주차 / 대상 기간: ' + formatDateYMD_(start) + ' ~ ' + formatDateYMD_(end));
-  if (hiresDraft.followUpCount > 0) {
-    lines.push('⚠ 확인 필요한 취업자 ' + hiresDraft.followUpCount + '건이 있습니다. (동명이인 또는 명단 미확인)');
+  if (hiresDraft.flaggedCount > 0) {
+    lines.push('⚠ 비고란에 메모가 남아있는 취업자 ' + hiresDraft.flaggedCount + '건이 있습니다. (등록요청/히든취업자 등 - 직접 확인)');
   }
 
   return lines.join('\n');

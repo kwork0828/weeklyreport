@@ -17,24 +17,27 @@ const CONFIG = {
   CONSULTANT_NAME: '황준식',
 
   // 본인이 담당하는 반(기수) - 취업설문 응답에서 신규 취업자를 걸러낼 때 사용
-  MY_COHORTS: ['11기', '12기', '13기', '14기'],
+  MY_COHORTS: ['11기', '12기', '13기', '14기', '15기', '16기'],
 
   // 취업설문 응답 중 어느 캠퍼스 값을 내 담당으로 볼지 (복수 캠퍼스 겸임 시 배열에 추가)
-  MY_CAMPUSES: ['구미 캠퍼스'],
+  MY_CAMPUSES: ['구미 캠퍼스', '부울경 캠퍼스'],
 
   // 재학중이라 '취업설문' 대상이 아닌 기수 (입사일만 기재, 완료/예정 문구 생략)
   CURRENT_STUDENT_COHORTS: ['15기', '16기'],
 
   // 시트/탭 이름 (실제 탭 이름이 다르면 여기만 고치면 됨)
+  // 2026-11-09 기준: 구미캠퍼스 교육생 탭이 '교육생_취업자명단'으로 이름이 바뀌었고
+  // F열(성별)과 학번 사이에 새 컬럼이 끼어들며 그 뒤 컬럼이 전부 한 칸씩 밀렸습니다.
+  // 아래 ROSTER_COL은 밀린 이후 기준으로 다시 맞춘 값입니다 - 또 바뀌면 여기와 ROSTER_COL만 고치면 됩니다.
   DAILY_LOG_SHEET_NAME: '★일일상담현황★',
-  ROSTER_SHEET_NAME: '구미캠퍼스 교육생',
+  ROSTER_SHEET_NAME: '교육생_취업자명단',
   SURVEY_RESPONSE_SHEET_NAME: '설문지 응답 시트1',
 
   // ★일일상담현황★ 탭의 헤더행 번호 / 데이터 시작행
   DAILY_LOG_HEADER_ROW: 2,
   DAILY_LOG_DATA_START_ROW: 3,
 
-  // 구미캠퍼스 교육생 탭의 헤더행 번호 / 데이터 시작행 (인적사항 표 기준)
+  // 교육생_취업자명단 탭의 헤더행 번호 / 데이터 시작행 (인적사항 표 기준)
   ROSTER_HEADER_ROW: 21,
   ROSTER_DATA_START_ROW: 22,
 
@@ -67,17 +70,20 @@ const LOG_COL = {
   SESSION_NO: 18,  // R 회차
 };
 
-// 구미캠퍼스 교육생 탭 컬럼 위치
+// 교육생_취업자명단 탭 컬럼 위치 (2026-11-09 기준, 컬럼 밀림 반영 완료)
 const ROSTER_COL = {
-  NAME: 3,       // C 이름
-  COHORT: 4,     // D 기수
-  CLASS: 5,      // E 반명
-  CONSULTANT: 13, // M 담당컨설
-  STATUS: 15,    // O 취업활동 (구직중/취업완료)
-  COMPANY: 16,   // P 기업명
-  START_DATE: 17, // Q 입사일자
-  TRACK: 18,     // R 구분 (자체/연계)
-  NOTE: 19,      // S 비고
+  NAME: 3,         // C 이름
+  COHORT: 4,       // D 기수
+  CLASS: 5,        // E 반명
+  CAMPUS: 13,      // M 캠퍼스 (구미/부울경)
+  CONSULTANT: 14,  // N 담당컨설
+  STATUS: 16,      // P 취업활동 (구직중/취업완료)
+  COMPANY: 17,     // Q 기업명
+  START_DATE: 18,  // R 입사일자
+  TRACK: 19,       // S 구분 (자체/연계)
+  JOB_DETAIL: 21,  // U 기타 (직무 상세)
+  NOTE: 22,        // V 비고 - "M/D(화) 보고" 마커가 실제로 찍히는 칸 (T열도 '비고'라는 이름이지만 다른 용도)
+  SURVEY_STATUS: 25, // Y 취업성공후기 칸에 '설문완료'/'요청' 등 취업설문 진행상태가 적혀 있음
 };
 
 // 설문지 응답 시트1 컬럼 위치
@@ -163,7 +169,7 @@ function formatKoreanShortDateWithWeekday_(date) {
   return md + '(' + weekdays[date.getDay()] + ')';
 }
 
-// 구미캠퍼스 교육생 탭 비고란의 "8/11(화) 보고" 같은 메모에서 가장 최근 보고일을 뽑아낸다.
+// 교육생_취업자명단 탭 비고란의 "8/11(화) 보고" 같은 메모에서 가장 최근 보고일을 뽑아낸다.
 // 같은 셀에 여러 번 누적 기재된 경우 가장 늦은 날짜를 기준으로 삼는다.
 function parseLatestReportedDate_(noteText) {
   if (!noteText) return null;
@@ -396,124 +402,87 @@ function buildConsultingHighlightsDraft(start, end) {
   return lines.join('\n');
 }
 /**
- * 취업 및 취업준비현황 파악(응답) 스프레드시트에서 이번 주 새로 들어온 취업 응답을 찾고,
- * 개인_상담일지 > '구미캠퍼스 교육생' 탭에 이미 반영되어 있는지 대조한다.
+ * '교육생_취업자명단' 탭을 직접 훑어서, 아직 주간보고에 반영 안 된(= 비고란에
+ * "M/D(화) 보고" 마커가 없는) 취업자를 찾는다.
+ *
+ * 실제로 써보니 이게 정답이었다: '취업 및 취업준비현황 파악(응답)' 설문 시트와
+ * 이번 주 날짜 구간으로 대조하는 방식은, 학생이 설문에 응답한 시점과 상담사가
+ * 실제로 '보고'한 시점이 서로 다르게 어긋나는 경우(응답은 몇 주 전인데 아직
+ * 마커가 안 찍힌 경우 등)를 놓친다. 마커가 없으면 무조건 후보로 잡는 쪽이
+ * 더 안전하고, 실제 업무 흐름과도 일치한다.
+ *
+ * 교육생_취업자명단 탭 자동 수정은 하지 않는다 - 비고란의 "보고" 마커는
+ * 본인이 보고서를 실제로 보낸 뒤 직접 기록한다 (이 스크립트는 읽기 전용).
  */
 
-function isEmployedStatus_(statusText) {
-  const s = String(statusText || '');
-  return CONFIG.EMPLOYED_STATUS_KEYWORDS.some(function (kw) {
-    return s.indexOf(kw) >= 0;
-  });
-}
+const ROSTER_EXCLUDED_COMPANIES = ['실습코치']; // 기업 취업이 아닌 placeholder 값
 
-// 내가 담당하는 캠퍼스/기수의 취업 응답 전체 목록.
-// 일부러 '이번 주' 기간으로 좁히지 않는다 - 이미 보고했는지 여부는 날짜 구간이 아니라
-// '구미캠퍼스 교육생' 탭 비고란의 "8/11(화) 보고" 메모(= 실제로 보고서에 넣은 시점)로 판단한다.
-// 그래야 주간 실행일이 월/화로 흔들려도, 혹은 특정 주에 깜빡 누락돼도 중복·누락 없이 처리된다.
-function collectSurveyHires_() {
-  return getSurveyRows_()
-    .filter(function (row) {
-      const campus = row[SURVEY_COL.CAMPUS - 1];
-      const cohort = row[SURVEY_COL.COHORT - 1];
-      const status = row[SURVEY_COL.STATUS - 1];
-      return (
-        CONFIG.MY_CAMPUSES.indexOf(campus) >= 0 &&
-        CONFIG.MY_COHORTS.indexOf(cohort) >= 0 &&
-        isEmployedStatus_(status)
-      );
+// 담당컨설=본인, 기업명 있음, '보고' 마커 없음 -> 전부 후보 (기간으로 좁히지 않음)
+function collectUnreportedRosterHires_() {
+  return getRosterRows_()
+    .map(function (row, i) {
+      return { rowNumber: CONFIG.ROSTER_DATA_START_ROW + i, row: row };
     })
-    .map(function (row) {
+    .filter(function (entry) {
+      const row = entry.row;
+      const consultant = row[ROSTER_COL.CONSULTANT - 1];
+      const company = row[ROSTER_COL.COMPANY - 1];
+      if (consultant !== CONFIG.CONSULTANT_NAME) return false;
+      if (!company || ROSTER_EXCLUDED_COMPANIES.indexOf(company) >= 0) return false;
+      const reportedDate = parseLatestReportedDate_(row[ROSTER_COL.NOTE - 1]);
+      return !reportedDate;
+    })
+    .map(function (entry) {
+      const row = entry.row;
       return {
-        timestamp: row[SURVEY_COL.TIMESTAMP - 1],
-        cohort: row[SURVEY_COL.COHORT - 1],
-        klass: row[SURVEY_COL.CLASS - 1],
-        name: row[SURVEY_COL.NAME - 1],
-        company: row[SURVEY_COL.COMPANY - 1],
-        startDate: parseKoreanDate_(row[SURVEY_COL.START_DATE - 1]),
-        dept: row[SURVEY_COL.DEPT - 1],
-        jobType: row[SURVEY_COL.JOB_TYPE - 1],
-        jobDetail: row[SURVEY_COL.JOB_DETAIL - 1],
-        route: row[SURVEY_COL.ROUTE - 1],
+        rowNumber: entry.rowNumber,
+        name: row[ROSTER_COL.NAME - 1],
+        cohort: row[ROSTER_COL.COHORT - 1],
+        klass: row[ROSTER_COL.CLASS - 1],
+        campus: row[ROSTER_COL.CAMPUS - 1],
+        company: row[ROSTER_COL.COMPANY - 1],
+        startDateRaw: row[ROSTER_COL.START_DATE - 1],
+        startDate: parseKoreanDate_(row[ROSTER_COL.START_DATE - 1]),
+        jobDetail: row[ROSTER_COL.JOB_DETAIL - 1],
+        surveyStatus: row[ROSTER_COL.SURVEY_STATUS - 1],
+        note: row[ROSTER_COL.NOTE - 1],
       };
     });
 }
 
-// 구미캠퍼스 교육생 탭을 (기수, 이름) 키로 색인화. 동명이인은 배열로 보관.
-function buildRosterIndex_() {
-  const rows = getRosterRows_();
-  const index = {};
-  rows.forEach(function (row, i) {
-    const name = row[ROSTER_COL.NAME - 1];
-    const cohort = row[ROSTER_COL.COHORT - 1];
-    if (!name || !cohort) return;
-    const key = cohort + '|' + String(name).trim();
-    if (!index[key]) index[key] = [];
-    index[key].push({ rowNumber: CONFIG.ROSTER_DATA_START_ROW + i, row: row });
-  });
-  return index;
-}
-
-// 취업 응답과 명단을 대조해 '이미 반영됨 / 신규 반영 필요 / 명단에서 못 찾음'으로 분류
-function detectNewHires() {
-  const hires = collectSurveyHires_();
-  const rosterIndex = buildRosterIndex_();
-
-  return hires.map(function (hire) {
-    const key = hire.cohort + '|' + String(hire.name).trim();
-    const matches = rosterIndex[key] || [];
-    let result = { hire: hire, status: 'NOT_FOUND', match: null };
-
-    if (matches.length === 1) {
-      const m = matches[0];
-      const note = m.row[ROSTER_COL.NOTE - 1];
-      const reportedDate = parseLatestReportedDate_(note);
-      // 비고란에 "OO(화) 보고" 메모가 있고 그 시점이 응답 제출일 이후면, 이미 그 주 보고에 반영된 건으로 본다.
-      const coveredByReportNote = !!(reportedDate && hire.timestamp && hire.timestamp <= reportedDate);
-      const companyMatches =
-        m.row[ROSTER_COL.STATUS - 1] === '취업완료' &&
-        String(m.row[ROSTER_COL.COMPANY - 1] || '').trim() === String(hire.company || '').trim();
-      result.status = coveredByReportNote || companyMatches ? 'ALREADY_RECORDED' : 'NEEDS_UPDATE';
-      result.match = m;
-    } else if (matches.length > 1) {
-      result.status = 'AMBIGUOUS'; // 동명이인 - 반명 등으로 수동 확인 필요
-      result.match = matches;
-    }
-    return result;
-  });
-}
-
-// 보고서용 한 줄 문구 생성: 기업명(부서/직무)_이름(기수N반)_취업일자 (컨설턴트명) 취업설문(완료/예정)
+// 보고서용 한 줄 문구: 기업명(직무)_이름(기수N반)_입사일자 (컨설턴트명) 취업설문(완료/예정)
 function formatNewHireLine_(hire) {
   const isCurrentStudent = CONFIG.CURRENT_STUDENT_COHORTS.indexOf(hire.cohort) >= 0;
-  const dateStr = hire.startDate ? formatDateYMD_(hire.startDate).slice(2) : '(입사일 확인 필요)';
-  const jobLabel = hire.jobDetail || hire.jobType || '';
-  const base =
-    hire.company + '(' + jobLabel + ')_' + hire.name + '(' + hire.cohort + (hire.klass ? hire.klass + '반' : '') + ')_' + dateStr + ' (' + CONFIG.CONSULTANT_NAME + ')';
-  if (isCurrentStudent) return base; // 재학생은 취업설문 완료/예정 문구 생략
-  const today = new Date();
-  const surveyPhrase = hire.startDate && hire.startDate <= today ? '취업설문(완료)' : '취업설문(예정)';
-  return base + ' ' + surveyPhrase;
+  const dateStr = hire.startDate ? formatDateYMD_(hire.startDate).slice(2) : String(hire.startDateRaw || '(입사일 확인 필요)');
+  const jobLabel = hire.jobDetail || '';
+  const klassLabel = hire.klass ? Math.trunc(Number(hire.klass)) + '반' : '';
+  const base = hire.company + '(' + jobLabel + ')_' + hire.name + '(' + hire.cohort + klassLabel + ')_' + dateStr + ' (' + CONFIG.CONSULTANT_NAME + ')';
+  if (isCurrentStudent) return base; // 재학생(15·16기)은 취업설문 완료/예정 문구 생략
+
+  const status = String(hire.surveyStatus || '');
+  let phrase;
+  if (status.indexOf('완료') >= 0) phrase = '취업설문(완료)';
+  else if (status.indexOf('요청') >= 0 || status.indexOf('필요') >= 0) phrase = '취업설문(예정)';
+  else {
+    const today = new Date();
+    phrase = hire.startDate && hire.startDate <= today ? '취업설문(완료)' : '취업설문(예정)';
+  }
+  return base + ' ' + phrase;
 }
 
 // (3) 특이사항 [취업자] 초안: 기수별로 그룹핑한 텍스트
 function buildNewHiresDraftText() {
-  const detections = detectNewHires();
+  const hires = collectUnreportedRosterHires_();
   const byCohort = {};
-  const followUps = [];
+  const flagged = [];
 
-  detections.forEach(function (d) {
-    const cohort = d.hire.cohort;
+  hires.forEach(function (hire) {
+    const cohort = hire.cohort || '확인필요';
     if (!byCohort[cohort]) byCohort[cohort] = [];
-    if (d.status === 'ALREADY_RECORDED') return; // 이미 명단에 반영된 건은 보고서 초안에서 제외
-
-    let line = '- ' + formatNewHireLine_(d.hire);
-    if (d.status === 'AMBIGUOUS') {
-      line += '  ⚠ 동명이인 ' + d.match.length + '명 - 반 번호로 직접 확인 필요';
-      followUps.push(d);
-    } else if (d.status === 'NOT_FOUND') {
-      line += '  ⚠ 구미캠퍼스 교육생 탭에서 이름을 못 찾음 - 신규 행 직접 추가 필요';
-      followUps.push(d);
+    let line = '- ' + formatNewHireLine_(hire);
+    if (hire.note) {
+      line += '  ⚠ 비고: ' + String(hire.note).replace(/\n/g, ' ');
+      flagged.push(hire);
     }
     byCohort[cohort].push(line);
   });
@@ -528,31 +497,8 @@ function buildNewHiresDraftText() {
     });
     lines.push('');
   });
-  if (lines.length === 0) lines.push('(이번 주 신규 취업 응답 없음)');
-  return { text: lines.join('\n'), detections: detections, followUpCount: followUps.length };
-}
-
-// 검토 후 확정된 건만 '구미캠퍼스 교육생' 탭에 반영 (NEEDS_UPDATE 상태인 건만 갱신, 새 행 생성은 하지 않음)
-// 비고란에는 실제 수기로 적던 것과 같은 "8/11(화) 보고" 형식으로 기록해서, 다음 실행 때 이 기록으로 중복을 걸러낸다.
-function applyConfirmedHiresToRoster() {
-  const detections = detectNewHires();
-  const sheet = getRosterSheet_();
-  const reportedTag = formatKoreanShortDateWithWeekday_(new Date()) + ' 보고';
-  let updated = 0;
-
-  detections.forEach(function (d) {
-    if (d.status !== 'NEEDS_UPDATE') return;
-    const r = d.match.rowNumber;
-    sheet.getRange(r, ROSTER_COL.STATUS).setValue('취업완료');
-    sheet.getRange(r, ROSTER_COL.COMPANY).setValue(d.hire.company);
-    if (d.hire.startDate) sheet.getRange(r, ROSTER_COL.START_DATE).setValue(d.hire.startDate);
-    const noteCell = sheet.getRange(r, ROSTER_COL.NOTE);
-    const existingNote = noteCell.getValue();
-    noteCell.setValue(existingNote ? existingNote + '\n' + reportedTag : reportedTag);
-    updated++;
-  });
-
-  return updated;
+  if (lines.length === 0) lines.push('(마커 없이 밀려있는 취업자 없음)');
+  return { text: lines.join('\n'), hires: hires, flaggedCount: flagged.length };
 }
 /**
  * 각 파트를 조립해서 실제 메일에 붙여넣을 수 있는 주간보고 초안을 만든다.
@@ -585,12 +531,12 @@ function buildWeeklyReportText_(start, end) {
   lines.push('(3) 특이 사항');
   lines.push('--- [컨설팅] 초안 (잡매칭 기록 기준, 문구 다듬기 필요) ---');
   lines.push(consultingDraft);
-  lines.push('--- [취업자] 초안 (자동 대조: 취업설문 응답 vs 구미캠퍼스 교육생 탭 비고란의 "보고" 기록) ---');
+  lines.push('--- [취업자] 초안 (교육생_취업자명단 탭에서 "보고" 마커 없는 건 전부) ---');
   lines.push(hiresDraft.text);
   lines.push('');
   lines.push('(참고) ' + weekNo + '주차 / 대상 기간: ' + formatDateYMD_(start) + ' ~ ' + formatDateYMD_(end));
-  if (hiresDraft.followUpCount > 0) {
-    lines.push('⚠ 확인 필요한 취업자 ' + hiresDraft.followUpCount + '건이 있습니다. (동명이인 또는 명단 미확인)');
+  if (hiresDraft.flaggedCount > 0) {
+    lines.push('⚠ 비고란에 메모가 남아있는 취업자 ' + hiresDraft.flaggedCount + '건이 있습니다. (등록요청/히든취업자 등 - 직접 확인)');
   }
 
   return lines.join('\n');
@@ -636,8 +582,7 @@ function onOpen() {
     .addItem('이번 주 초안 미리보기', 'previewWeeklyReportDraft')
     .addItem('이번 주 초안 Google Doc으로 생성', 'generateWeeklyReportDraftUi')
     .addSeparator()
-    .addItem('신규 취업자만 확인', 'previewNewHiresUi')
-    .addItem('확인된 취업자 → 구미캠퍼스 교육생 탭에 반영', 'applyConfirmedHiresUi')
+    .addItem('마커 없는 취업자만 확인', 'previewNewHiresUi')
     .addSeparator()
     .addItem('매주 화요일 09:00 자동 실행 등록', 'createWeeklyTrigger')
     .addItem('자동 실행 해제', 'removeWeeklyTrigger')
@@ -652,20 +597,6 @@ function generateWeeklyReportDraftUi() {
 function previewNewHiresUi() {
   const draft = buildNewHiresDraftText();
   SpreadsheetApp.getUi().alert('신규 취업자 초안', draft.text, SpreadsheetApp.getUi().ButtonSet.OK);
-}
-
-function applyConfirmedHiresUi() {
-  const ui = SpreadsheetApp.getUi();
-  const confirm = ui.alert(
-    '구미캠퍼스 교육생 탭 반영',
-    '아직 보고되지 않은 취업 확인 건 중, 명단에서 정확히 1명이 매칭된 건만 자동으로 반영합니다.\n' +
-      '반영 시 비고란에 "오늘 날짜(요일) 보고"가 자동 기록되어 다음부터는 중복으로 잡히지 않습니다.\n' +
-      '동명이인/명단 미발견 건은 반영되지 않으니 직접 확인해주세요.\n계속할까요?',
-    ui.ButtonSet.YES_NO
-  );
-  if (confirm !== ui.Button.YES) return;
-  const updated = applyConfirmedHiresToRoster();
-  ui.alert('반영 완료: ' + updated + '건');
 }
 
 function createWeeklyTrigger() {

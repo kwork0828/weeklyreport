@@ -45,7 +45,7 @@ function formatKoreanShortDateWithWeekday_(date) {
   return md + '(' + weekdays[date.getDay()] + ')';
 }
 
-// 구미캠퍼스 교육생 탭 비고란의 "8/11(화) 보고" 같은 메모에서 가장 최근 보고일을 뽑아낸다.
+// 교육생_취업자명단 탭 비고란의 "8/11(화) 보고" 같은 메모에서 가장 최근 보고일을 뽑아낸다.
 // 같은 셀에 여러 번 누적 기재된 경우 가장 늦은 날짜를 기준으로 삼는다.
 function parseLatestReportedDate_(noteText) {
   if (!noteText) return null;

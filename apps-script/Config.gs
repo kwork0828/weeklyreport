@@ -11,24 +11,27 @@ const CONFIG = {
   CONSULTANT_NAME: '황준식',
 
   // 본인이 담당하는 반(기수) - 취업설문 응답에서 신규 취업자를 걸러낼 때 사용
-  MY_COHORTS: ['11기', '12기', '13기', '14기'],
+  MY_COHORTS: ['11기', '12기', '13기', '14기', '15기', '16기'],
 
   // 취업설문 응답 중 어느 캠퍼스 값을 내 담당으로 볼지 (복수 캠퍼스 겸임 시 배열에 추가)
-  MY_CAMPUSES: ['구미 캠퍼스'],
+  MY_CAMPUSES: ['구미 캠퍼스', '부울경 캠퍼스'],
 
   // 재학중이라 '취업설문' 대상이 아닌 기수 (입사일만 기재, 완료/예정 문구 생략)
   CURRENT_STUDENT_COHORTS: ['15기', '16기'],
 
   // 시트/탭 이름 (실제 탭 이름이 다르면 여기만 고치면 됨)
+  // 2026-11-09 기준: 구미캠퍼스 교육생 탭이 '교육생_취업자명단'으로 이름이 바뀌었고
+  // F열(성별)과 학번 사이에 새 컬럼이 끼어들며 그 뒤 컬럼이 전부 한 칸씩 밀렸습니다.
+  // 아래 ROSTER_COL은 밀린 이후 기준으로 다시 맞춘 값입니다 - 또 바뀌면 여기와 ROSTER_COL만 고치면 됩니다.
   DAILY_LOG_SHEET_NAME: '★일일상담현황★',
-  ROSTER_SHEET_NAME: '구미캠퍼스 교육생',
+  ROSTER_SHEET_NAME: '교육생_취업자명단',
   SURVEY_RESPONSE_SHEET_NAME: '설문지 응답 시트1',
 
   // ★일일상담현황★ 탭의 헤더행 번호 / 데이터 시작행
   DAILY_LOG_HEADER_ROW: 2,
   DAILY_LOG_DATA_START_ROW: 3,
 
-  // 구미캠퍼스 교육생 탭의 헤더행 번호 / 데이터 시작행 (인적사항 표 기준)
+  // 교육생_취업자명단 탭의 헤더행 번호 / 데이터 시작행 (인적사항 표 기준)
   ROSTER_HEADER_ROW: 21,
   ROSTER_DATA_START_ROW: 22,
 
@@ -61,17 +64,20 @@ const LOG_COL = {
   SESSION_NO: 18,  // R 회차
 };
 
-// 구미캠퍼스 교육생 탭 컬럼 위치
+// 교육생_취업자명단 탭 컬럼 위치 (2026-11-09 기준, 컬럼 밀림 반영 완료)
 const ROSTER_COL = {
-  NAME: 3,       // C 이름
-  COHORT: 4,     // D 기수
-  CLASS: 5,      // E 반명
-  CONSULTANT: 13, // M 담당컨설
-  STATUS: 15,    // O 취업활동 (구직중/취업완료)
-  COMPANY: 16,   // P 기업명
-  START_DATE: 17, // Q 입사일자
-  TRACK: 18,     // R 구분 (자체/연계)
-  NOTE: 19,      // S 비고
+  NAME: 3,         // C 이름
+  COHORT: 4,       // D 기수
+  CLASS: 5,        // E 반명
+  CAMPUS: 13,      // M 캠퍼스 (구미/부울경)
+  CONSULTANT: 14,  // N 담당컨설
+  STATUS: 16,      // P 취업활동 (구직중/취업완료)
+  COMPANY: 17,     // Q 기업명
+  START_DATE: 18,  // R 입사일자
+  TRACK: 19,       // S 구분 (자체/연계)
+  JOB_DETAIL: 21,  // U 기타 (직무 상세)
+  NOTE: 22,        // V 비고 - "M/D(화) 보고" 마커가 실제로 찍히는 칸 (T열도 '비고'라는 이름이지만 다른 용도)
+  SURVEY_STATUS: 25, // Y 취업성공후기 칸에 '설문완료'/'요청' 등 취업설문 진행상태가 적혀 있음
 };
 
 // 설문지 응답 시트1 컬럼 위치
