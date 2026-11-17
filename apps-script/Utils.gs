@@ -25,9 +25,15 @@ function getReportDateRange_(refDate) {
   return { start, end };
 }
 
+// 상담일 셀이 날짜 서식이면 Date로, 텍스트 서식("2025-07-25")이면 문자열로 들어오는 걸 둘 다 처리
 function isWithinRange_(date, start, end) {
-  if (!(date instanceof Date) || isNaN(date)) return false;
-  return date >= start && date <= end;
+  let d = date;
+  if (!(d instanceof Date)) {
+    if (typeof d !== 'string') return false;
+    d = new Date(d);
+  }
+  if (isNaN(d)) return false;
+  return d >= start && d <= end;
 }
 
 function formatDateYMD_(date) {
@@ -77,6 +83,12 @@ function openCounselSheet_() {
   return SpreadsheetApp.openById(CONFIG.COUNSEL_SHEET_ID);
 }
 
+// 취업자 명단은 (2026-11-17 기준) 상담일지와 다른 스프레드시트에 있을 수 있어 ID를 분리했다.
+// ROSTER_SHEET_ID가 비어 있으면 COUNSEL_SHEET_ID와 같은 파일로 간주한다.
+function openRosterSheet_() {
+  return SpreadsheetApp.openById(CONFIG.ROSTER_SHEET_ID || CONFIG.COUNSEL_SHEET_ID);
+}
+
 function openSurveySheet_() {
   return SpreadsheetApp.openById(CONFIG.SURVEY_SHEET_ID);
 }
@@ -92,7 +104,7 @@ function getDailyLogRows_() {
 }
 
 function getRosterSheet_() {
-  return openCounselSheet_().getSheetByName(CONFIG.ROSTER_SHEET_NAME);
+  return openRosterSheet_().getSheetByName(CONFIG.ROSTER_SHEET_NAME);
 }
 
 function getRosterRows_() {

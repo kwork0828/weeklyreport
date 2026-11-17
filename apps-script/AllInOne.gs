@@ -10,7 +10,12 @@
  */
 const CONFIG = {
   // 스프레드시트 URL의 https://docs.google.com/spreadsheets/d/[여기부분]/edit 을 그대로 복사
-  COUNSEL_SHEET_ID: '1hhpMsc3h-OWqvgFuIlRWes_tNB6d53Cx', // 개인_상담일지
+  // 2026-11-17: 상담일지가 "(2026)★개인_부울경_일일_상담_현황_DB_황준식"로 바뀌어 COUNSEL_SHEET_ID를 갱신함.
+  // 단, 이 새 시트의 '관리학생정보' 탭은 부울경 위주(158건)이고 구미 취업자(서현호·윤준석·김정수A 등)가
+  // 거의 없어서, 일단 ROSTER_SHEET_ID는 예전 '개인_상담일지'(교육생_취업자명단 탭)를 그대로 가리키게 해뒀다.
+  // 구미 쪽 취업자를 이제 어디서 관리하는지 확인되면 ROSTER_SHEET_ID/ROSTER_SHEET_NAME만 바꾸면 됨.
+  COUNSEL_SHEET_ID: '1V7H4fh4lXQ76QArye6iS6XR3NWYCIiw4dSGX1YUnCIw', // (2026)★개인_부울경_일일_상담_현황_DB_황준식
+  ROSTER_SHEET_ID: '1hhpMsc3h-OWqvgFuIlRWes_tNB6d53Cx', // 개인_상담일지 (구 취업자 명단 - 확인 전까지 유지)
   SURVEY_SHEET_ID: '1lDBtxUvEHs_V2vVvthD7Es5YStXJqcTj4_pSGMGYQEc', // 취업 및 취업준비현황 파악(응답)
 
   // 상담일지 '컨설턴트' 컬럼에 적힌 본인 이름과 정확히 일치해야 필터링됩니다.
@@ -26,14 +31,11 @@ const CONFIG = {
   CURRENT_STUDENT_COHORTS: ['15기', '16기'],
 
   // 시트/탭 이름 (실제 탭 이름이 다르면 여기만 고치면 됨)
-  // 2026-11-09 기준: 구미캠퍼스 교육생 탭이 '교육생_취업자명단'으로 이름이 바뀌었고
-  // F열(성별)과 학번 사이에 새 컬럼이 끼어들며 그 뒤 컬럼이 전부 한 칸씩 밀렸습니다.
-  // 아래 ROSTER_COL은 밀린 이후 기준으로 다시 맞춘 값입니다 - 또 바뀌면 여기와 ROSTER_COL만 고치면 됩니다.
-  DAILY_LOG_SHEET_NAME: '★일일상담현황★',
+  DAILY_LOG_SHEET_NAME: '일일상담일지', // 새 DB 시트 기준 (구 시트에선 ★일일상담현황★)
   ROSTER_SHEET_NAME: '교육생_취업자명단',
   SURVEY_RESPONSE_SHEET_NAME: '설문지 응답 시트1',
 
-  // ★일일상담현황★ 탭의 헤더행 번호 / 데이터 시작행
+  // 일일상담일지 탭의 헤더행 번호 / 데이터 시작행
   DAILY_LOG_HEADER_ROW: 2,
   DAILY_LOG_DATA_START_ROW: 3,
 
@@ -52,7 +54,8 @@ const CONFIG = {
   EMPLOYED_STATUS_KEYWORDS: ['정규직', '계약직', '인턴', '파견', '창업'],
 };
 
-// ★일일상담현황★ 컬럼 위치 (A=1). 실제 시트 컬럼 순서가 바뀌면 여기만 수정.
+// 일일상담일지 컬럼 위치 (A=1). 2026-11-17 새 DB 시트 기준 - 잡매칭이 5칸에서 3칸으로 줄었다.
+// 실제 시트 컬럼 순서가 바뀌면 여기만 수정.
 const LOG_COL = {
   DATE: 1,        // A 상담일
   STUDENT_ID: 2,  // B 학번
@@ -65,9 +68,9 @@ const LOG_COL = {
   TOPIC: 9,        // I 상담주제 (면접코칭/이력서 자소서 클리닉 등)
   CONSULTANT: 10,  // J 컨설턴트
   CONTENT: 11,     // K 상담내용
-  JOB_MATCH_START: 13, // M~Q 잡매칭1~5
-  JOB_MATCH_END: 17,
-  SESSION_NO: 18,  // R 회차
+  JOB_MATCH_START: 13, // M~O 잡매칭1~3
+  JOB_MATCH_END: 15,
+  SESSION_NO: 16,  // P 회차
 };
 
 // 교육생_취업자명단 탭 컬럼 위치 (2026-11-09 기준, 컬럼 밀림 반영 완료)
@@ -149,9 +152,15 @@ function getReportDateRange_(refDate) {
   return { start, end };
 }
 
+// 상담일 셀이 날짜 서식이면 Date로, 텍스트 서식("2025-07-25")이면 문자열로 들어오는 걸 둘 다 처리
 function isWithinRange_(date, start, end) {
-  if (!(date instanceof Date) || isNaN(date)) return false;
-  return date >= start && date <= end;
+  let d = date;
+  if (!(d instanceof Date)) {
+    if (typeof d !== 'string') return false;
+    d = new Date(d);
+  }
+  if (isNaN(d)) return false;
+  return d >= start && d <= end;
 }
 
 function formatDateYMD_(date) {
@@ -201,6 +210,12 @@ function openCounselSheet_() {
   return SpreadsheetApp.openById(CONFIG.COUNSEL_SHEET_ID);
 }
 
+// 취업자 명단은 (2026-11-17 기준) 상담일지와 다른 스프레드시트에 있을 수 있어 ID를 분리했다.
+// ROSTER_SHEET_ID가 비어 있으면 COUNSEL_SHEET_ID와 같은 파일로 간주한다.
+function openRosterSheet_() {
+  return SpreadsheetApp.openById(CONFIG.ROSTER_SHEET_ID || CONFIG.COUNSEL_SHEET_ID);
+}
+
 function openSurveySheet_() {
   return SpreadsheetApp.openById(CONFIG.SURVEY_SHEET_ID);
 }
@@ -216,7 +231,7 @@ function getDailyLogRows_() {
 }
 
 function getRosterSheet_() {
-  return openCounselSheet_().getSheetByName(CONFIG.ROSTER_SHEET_NAME);
+  return openRosterSheet_().getSheetByName(CONFIG.ROSTER_SHEET_NAME);
 }
 
 function getRosterRows_() {
